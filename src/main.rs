@@ -1,11 +1,13 @@
 #![allow(deprecated)]
 use std::env::home_dir;
+use std::ffi::OsString;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::Path;
+use std::os::unix::prelude::MetadataExt;
+use std::path::{Path, PathBuf};
 
-fn read_file() {
+fn red_file() {
     let path = Path::new("./input.txt");
     let display = path.display();
 
@@ -21,30 +23,55 @@ fn read_file() {
     };
 }
 
-enum FileType {
-    Directory = 32,
-    File,
+struct FileStruct {
+    name: OsString,
+    is_dir: bool,
+    #[allow(unused)]
+    file_type: std::fs::FileType,
+    size: u64,
+    full_path: PathBuf,
+    #[allow(unused)]
+    content: Vec<FileStruct>,
 }
-struct OneFile {
-    name: String,
-    file_type: FileType,
+fn read_file(path: &Path, recursive: bool) -> FileStruct{
+    let file_read = fs::metadata(path).unwrap();
+    let file = FileStruct{
+        name: OsString::from("./"),
+        is_dir: true,
+        file_type: file_read.file_type(),
+        size: file_read.size(),
+        full_path: path.to_owned(),
+        content: Vec::new(),
+    };
+    file
 }
-fn read_directory(path: &Path) {
+fn read_directory(path: &Path) -> Vec<FileStruct> {
+    let mut all_files: Vec<FileStruct> = Vec::new();
     let dir_list = fs::read_dir(path).unwrap();
     for dir in dir_list {
         let dir = dir.unwrap();
+        let file: FileStruct = FileStruct {
+            name: dir.file_name(),
+            is_dir: dir.metadata().unwrap().is_dir(),
+            file_type: dir.metadata().unwrap().file_type(),
+            size: dir.metadata().unwrap().len(),
+            full_path: dir.path(),
+            content: Vec::new(),
+        };
         println!(
-            "Filename:{}metadata:[IsDir:{}, Size(B):{}], path:{}",
-            dir.file_name().to_string_lossy(),
-            dir.metadata().unwrap().is_dir().to_string(),
-            dir.metadata().unwrap().len(),
-            dir.path().display()
+            "Filename:{}    metadata:[IsDir:{}, Size:{}B], path:{}",
+            file.name.to_str().unwrap(),
+            file.is_dir,
+            file.size,
+            file.full_path.display(),
         );
+        all_files.push(file);
     }
+    all_files
 }
 
 fn main() {
-    //deprecated function home_dir() should work on linux so its okey i guess :)
+    //deprecated function home_dir() should work on linux so it's okey i guess :)
     let home_path = match home_dir() {
         Some(x) => x,
         None => {
@@ -54,5 +81,5 @@ fn main() {
     println!("{}", home_path.display());
     let path_s = format!("{}/.config/nvim/", home_path.display());
     let path = Path::new(&path_s);
-    read_directory(path);
+    let root_directory = read_directory(path);
 }
