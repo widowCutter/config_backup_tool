@@ -1,4 +1,6 @@
 #![allow(deprecated)]
+use druid::widget::{Button, Flex, Label};
+use druid::{AppLauncher, LocalizedString, PlatformError, Widget, WidgetExt, WindowDesc};
 use std::env::home_dir;
 use std::ffi::OsString;
 use std::fs;
@@ -33,9 +35,9 @@ struct FileStruct {
     #[allow(unused)]
     content: Vec<FileStruct>,
 }
-fn read_file(path: &Path, recursive: bool) -> FileStruct{
+fn read_file(path: &Path, recursive: bool) -> FileStruct {
     let file_read = fs::metadata(path).unwrap();
-    let file = FileStruct{
+    let file = FileStruct {
         name: OsString::from("./"),
         is_dir: true,
         file_type: file_read.file_type(),
@@ -70,7 +72,7 @@ fn read_directory(path: &Path) -> Vec<FileStruct> {
     all_files
 }
 
-fn main() {
+fn init_file_search() {
     //deprecated function home_dir() should work on linux so it's okey i guess :)
     let home_path = match home_dir() {
         Some(x) => x,
@@ -83,3 +85,21 @@ fn main() {
     let path = Path::new(&path_s);
     let root_directory = read_directory(path);
 }
+
+fn main() -> Result<(), PlatformError> {
+    let main_window = WindowDesc::new(ui_builder());
+    let data = 0_u32;
+    AppLauncher::with_window(main_window)
+        .log_to_console()
+        .launch(data)
+}
+
+fn ui_builder() -> impl Widget<u32> {
+    let text = LocalizedString::new("hello-counter").with_arg("count", |data: &u32, _env| (*data).into());
+    let label = Label::new(text).padding(5.0).center();
+    let button = Button::new("Increment")
+        .on_click(|_ctx, data, _env| *data += 1)
+        .padding(5.0);
+    return Flex::column().with_child(label).with_child(button);
+}
+
