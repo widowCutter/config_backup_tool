@@ -1,6 +1,6 @@
 #![allow(deprecated)]
-use druid::widget::{Button, Flex, Label};
-use druid::{AppLauncher, LocalizedString, PlatformError, Widget, WidgetExt, WindowDesc};
+#![allow(unused)]
+use std::borrow::Borrow;
 use std::env::home_dir;
 use std::ffi::OsString;
 use std::fs;
@@ -8,6 +8,10 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
+
+use file::hello_world;
+
+mod file;
 
 fn red_file() {
     let path = Path::new("./input.txt");
@@ -25,6 +29,7 @@ fn red_file() {
     };
 }
 
+#[derive(Clone)]
 struct FileStruct {
     name: OsString,
     is_dir: bool,
@@ -45,8 +50,12 @@ fn read_file(path: &Path, recursive: bool) -> FileStruct {
         full_path: path.to_owned(),
         content: Vec::new(),
     };
+    if file.is_dir == true {
+        //println!("True");
+    }
     file
 }
+//recursive calling of indexing directory
 fn read_directory(path: &Path) -> Vec<FileStruct> {
     let mut all_files: Vec<FileStruct> = Vec::new();
     let dir_list = fs::read_dir(path).unwrap();
@@ -60,19 +69,28 @@ fn read_directory(path: &Path) -> Vec<FileStruct> {
             full_path: dir.path(),
             content: Vec::new(),
         };
-        println!(
-            "Filename:{}    metadata:[IsDir:{}, Size:{}B], path:{}",
-            file.name.to_str().unwrap(),
-            file.is_dir,
-            file.size,
-            file.full_path.display(),
-        );
+       // println!(
+       //     "Filename:{}    metadata:[IsDir:{}, Size:{}B], path:{}",
+       //     file.name.to_str().unwrap(),
+       //     file.is_dir,
+       //     file.size,
+       //     file.full_path.display(),
+       // );
         all_files.push(file);
     }
-    all_files
+    let mut output_files: Vec<FileStruct> = Vec::new();
+    for mut file in all_files
+    {
+        //println!("Is file{} dir?{}", file.full_path.display(), file.is_dir);
+        if file.is_dir {
+            file.content = read_directory(file.full_path.borrow());
+        }
+        output_files.push(file);
+    }
+    output_files
 }
 
-fn init_file_search() {
+fn call_index_file() -> FileStruct {
     //deprecated function home_dir() should work on linux so it's okey i guess :)
     let home_path = match home_dir() {
         Some(x) => x,
@@ -80,26 +98,22 @@ fn init_file_search() {
             panic!("Couldn't get path to home directory")
         }
     };
-    println!("{}", home_path.display());
+    //println!("{}", home_path.display());
     let path_s = format!("{}/.config/nvim/", home_path.display());
     let path = Path::new(&path_s);
     let root_directory = read_directory(path);
+    root_directory[0].clone()
 }
-
-fn main() -> Result<(), PlatformError> {
-    let main_window = WindowDesc::new(ui_builder());
-    let data = 0_u32;
-    AppLauncher::with_window(main_window)
-        .log_to_console()
-        .launch(data)
+fn show_content(dir: FileStruct)
+{
+    let mut i = 0;
+    for file in dir.content {
+        println!("{}:{}", i,file.name.to_string_lossy());
+        i += 1;
+    }
 }
-
-fn ui_builder() -> impl Widget<u32> {
-    let text = LocalizedString::new("hello-counter").with_arg("count", |data: &u32, _env| (*data).into());
-    let label = Label::new(text).padding(5.0).center();
-    let button = Button::new("Increment")
-        .on_click(|_ctx, data, _env| *data += 1)
-        .padding(5.0);
-    return Flex::column().with_child(label).with_child(button);
+fn main () {
+    let file = call_index_file();
+    show_content(file.clone());
+    hello_world();
 }
-
